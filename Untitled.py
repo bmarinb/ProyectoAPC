@@ -139,13 +139,14 @@ def extract_features(signal, sr, n_feats=100, red=2):
     #homom = homomorphic_envelope(signal)
     #homom = np.resize(homom, (delta, int(length/delta)))
     h_feat = np.resize(h_feat, (delta, int(length/delta)))
-
-
     if Zxx.shape[1]> n_feats:
         Zxx = Zxx[:,:n_feats]
+        
+    
     #print(Zxx.shape, homom.shape, h_feat.shape)
     Z = np.concatenate([Zxx, h_feat], axis=0)
     #print(Z.shape)
+    L = []
     if False:
         # Wavelet y MFCC quedan afuera por no contar con código eficiente
         mfcc = librosa.feature.mfcc(signal, sr=sr)
@@ -206,14 +207,25 @@ X_test, y_test = generate_X_y(test_wavs, test_labels, num_feats, max_label_len, 
 # La razón entre labels y largo del audio es 1:20. Esto significa que puedo usar un algoritmo que extraiga características
 
 
-# In[155]:
+# In[173]:
 
 
 from sklearn.preprocessing import StandardScaler
 
+X_scale = np.reshape(X_train, (X_train.shape[0]* X_train.shape[1],61))
+
 scaler = StandardScaler()
-scaler.fit(X_train)
-X_train = scaler.transform(X_train)
+scaler.fit(X_scale)
+print(X_train.shape)
+
+def transform(X):
+    for i in range(X.shape[1]):
+        X[:,i,:] = scaler.transform(X[:,i, :])
+    return X
+
+X_train2 = transform(X_train)
+X_val2 = transform(X_val)
+X_test2 = transform(X_test)
 
 
 # In[ ]:
@@ -231,7 +243,7 @@ yhot_val = one_hot_y(y_val)
 yhot_test = one_hot_y(y_test)
 
 
-# In[156]:
+# In[ ]:
 
 
 from keras.layers import Dense,CuDNNGRU, Bidirectional, GRU, Activation, Flatten
@@ -246,8 +258,8 @@ def create_model():
     model = Sequential()
 
 
-    model.add(GRU(30, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
-    model.add(GRU(30, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
+    model.add(GRU(10, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
+    model.add(GRU(10, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
 
     model.add(Dense(5))
     model.add(Activation('softmax'))
@@ -257,13 +269,13 @@ def create_model():
     checkpoint = ModelCheckpoint("Model.hdf5", save_best_only=True)
     stopping = EarlyStopping(min_delta=0.0001, patience=10, restore_best_weights=True)
     callbacks = [checkpoint, stopping]
-    history = model.fit(X_train, yhot_train, epochs=10, batch_size=256, validation_data=(X_val, yhot_val), callbacks=callbacks)
+    history = model.fit(X_train, yhot_train, epochs=20, batch_size=256, validation_data=(X_val, yhot_val), callbacks=callbacks)
     return model
 
 model = create_model()
 
 
-# In[157]:
+# In[176]:
 
 
 model.predict(X_test)
