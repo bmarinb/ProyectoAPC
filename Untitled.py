@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+# In[4]:
+
+
 import scipy.io.wavfile
 import numpy as np
 import wfdb
@@ -66,12 +72,13 @@ def wavelet(signal):
     return L
 
 
-
-
-
 def load_mat(varname):
     mat = scipy.io.loadmat(varname+'.mat')
     return mat[varname]
+
+
+# In[6]:
+
 
 wavs = load_mat("example_audio_data")
 patient_numbers = load_mat("patient_number")
@@ -83,6 +90,10 @@ numbers = np.array([int(patient_numbers[0][i][0][0])for i in range(patient_numbe
 
 train_delim = min(np.argwhere(numbers==n_val[0]))[0] # Primer miembro de VAL
 val_delim =  min(np.argwhere(numbers==n_test[0]))[0] # Primer miembro de TEST
+
+
+# In[7]:
+
 
 
 def split_set(arr, train_delim, val_delim):
@@ -98,6 +109,9 @@ def split_set(arr, train_delim, val_delim):
 
 train_wavs, val_wavs, test_wavs = split_set(wavs, train_delim, val_delim)
 train_labels, val_labels, test_labels = split_set(labels, train_delim, val_delim)
+
+
+# In[144]:
 
 
 def zero_pad(arr, size):
@@ -138,6 +152,10 @@ def extract_features(signal, sr, n_feats=100, red=2):
         wt = wavelet(filtered_signal)
     return Z
 
+
+# In[145]:
+
+
 max_len = 0
 max_label_len = 0
 
@@ -151,6 +169,10 @@ red = 2
 max_len = int(max_len/red) + 20 
 max_label_len = int(max_label_len/red) + 1
 num_feats = 61
+
+
+# In[150]:
+
 
 def generate_X_y(wavs, labels, num_feats, max_label_len, red):
     X = np.zeros((wavs.shape[0], num_feats, max_label_len))
@@ -175,10 +197,28 @@ def generate_X_y(wavs, labels, num_feats, max_label_len, red):
     return X, y
 
 
+# In[151]:
+
+
 X_train, y_train= generate_X_y(train_wavs, train_labels, num_feats, max_label_len, red)
 X_val, y_val= generate_X_y(val_wavs, val_labels, num_feats, max_label_len, red)
 X_test, y_test = generate_X_y(test_wavs, test_labels, num_feats, max_label_len, red)
 # La razón entre labels y largo del audio es 1:20. Esto significa que puedo usar un algoritmo que extraiga características
+
+
+# In[155]:
+
+
+from sklearn.preprocessing import StandardScaler
+
+scaler = StandardScaler()
+scaler.fit(X_train)
+X_train = scaler.transform(X_train)
+
+
+# In[ ]:
+
+
 def one_hot_y(y):
     yhot = np.zeros((y.shape[0], y.shape[1], 5))
     for i in range(y.shape[0]):
@@ -189,6 +229,10 @@ def one_hot_y(y):
 yhot_train = one_hot_y(y_train)
 yhot_val = one_hot_y(y_val)
 yhot_test = one_hot_y(y_test)
+
+
+# In[156]:
+
 
 from keras.layers import Dense,CuDNNGRU, Bidirectional, GRU, Activation, Flatten
 from keras.models import Sequential
@@ -202,8 +246,8 @@ def create_model():
     model = Sequential()
 
 
-    model.add(GRU(20, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
-    model.add(GRU(20, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
+    model.add(GRU(30, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
+    model.add(GRU(30, return_sequences=True, input_shape=( X_train.shape[1], X_train.shape[2])))
 
     model.add(Dense(5))
     model.add(Activation('softmax'))
@@ -217,3 +261,16 @@ def create_model():
     return model
 
 model = create_model()
+
+
+# In[157]:
+
+
+model.predict(X_test)
+
+
+# In[ ]:
+
+
+
+
